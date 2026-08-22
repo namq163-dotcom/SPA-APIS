@@ -60,19 +60,17 @@ COUNTRY_DATA = {
 
 if 'sel' not in st.session_state: st.session_state.sel = "Việt Nam"
 
-st.markdown("### 🌍 Lựa chọn điểm đến:")
-# Tạo lưới 4 cột cho các nút bấm
-cols = st.columns(4)
-keys = list(COUNTRY_DATA.keys())
-
-for i, key in enumerate(keys):
-    with cols[i % 4]:
-        flag_url = f"https://flagcdn.com/w40/{COUNTRY_DATA[key]}.png"
-        # Dùng Markdown để tạo nút có hình ảnh quốc kỳ
-        if st.button(f"![Flag]({flag_url}) {key}", key=f"btn_{key}", use_container_width=True):
-            st.session_state.sel = key
-            st.rerun()
-
 st.markdown("---")
-st.success(f"Đang cấu hình dữ liệu cho: **{st.session_state.sel}**")
-st.file_uploader(f"Tải lên file GD (.xls, .xlsx) cho chuyến bay đến {st.session_state.sel}")
+# Cấu hình trạng thái đã có template hay chưa
+TEMPLATE_READY = {
+    "Việt Nam": True, "HongKong": False, "Taipei": False, "Korean": False,
+    "Thailand": False, "Singapore": False, "Malaysia": False, "China": False
+}
+
+if TEMPLATE_READY[st.session_state.sel]:
+    uploaded = st.file_uploader(f"Tải lên file GD (.xls, .xlsx) cho {st.session_state.sel}")
+    if uploaded:
+        st.info(f"Đang xử lý dữ liệu APIS cho {st.session_state.sel}...")
+        # Gọi hàm xử lý tương ứng ở đây
+else:
+    st.warning(f"🚧 Chức năng xuất APIS cho **{st.session_state.sel}** đang chờ cập nhật Template chuẩn. Vui lòng liên hệ Admin để thêm mẫu!")
