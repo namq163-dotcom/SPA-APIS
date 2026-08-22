@@ -8,76 +8,71 @@ from datetime import datetime
 # ==========================================
 st.set_page_config(page_title="Sun PhuQuoc Airways - APIS", page_icon="☀️", layout="wide")
 
-# CSS TUỲ CHỈNH
+# CSS ĐỂ LÀM MỚI GIAO DIỆN
 st.markdown("""
 <style>
-    .stButton > button { border-radius: 8px; font-weight: 600; border: 1px solid #d4af37; }
-    .stButton > button:hover { background-color: #fffaf0; }
+    .stButton > button { border-radius: 10px; font-weight: 600; border: 1px solid #d4af37; height: 60px; background-color: white; }
+    .stButton > button:hover { background-color: #fffaf0; border: 2px solid #d4af37; }
 </style>
 """, unsafe_allow_html=True)
 
-# HEADER: HIỂN THỊ ĐỦ 8 MÚI GIỜ
+# HEADER: MỞ RỘNG VÀ HIỂN THỊ ĐẦY ĐỦ THÔNG TIN
 header_html = """
-<div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 15px; background: #fffaf0; border-radius: 10px; border-bottom: 3px solid #d4af37; font-family: sans-serif; font-size: 10px;">
-    <div style="flex: 1;">
-        <div style="color: #1a2a6c; font-size: 16px; font-weight: 800;">SUN PHUQUOC AIRWAYS</div>
-        <div style="color: #d4af37; font-weight: 700;">APIS OPERATIONS CENTER</div>
+<div style="background: linear-gradient(135deg, #1a2a6c, #001f3f); padding: 20px; border-radius: 15px; color: white; font-family: sans-serif; box-shadow: 0 4px 15px rgba(0,0,0,0.3);">
+    <div style="text-align: center; margin-bottom: 15px;">
+        <div style="font-size: 24px; font-weight: 900; letter-spacing: 2px; color: #d4af37;">☀️ SUN PHUQUOC AIRWAYS</div>
+        <div style="font-size: 14px; letter-spacing: 4px; opacity: 0.8;">APIS OPERATIONS CENTER</div>
     </div>
-    <div style="display: flex; gap: 8px; text-align: center;">
-        <div><b>VN:</b><br><span id="time-vn"></span></div>
-        <div><b>UTC:</b><br><span id="time-utc"></span></div>
-        <div><b>HK:</b><br><span id="time-hk"></span></div>
-        <div><b>TP:</b><br><span id="time-tp"></span></div>
-        <div><b>KR:</b><br><span id="time-kr"></span></div>
-        <div><b>TH:</b><br><span id="time-th"></span></div>
-        <div><b>SG:</b><br><span id="time-sg"></span></div>
-        <div><b>MY:</b><br><span id="time-my"></span></div>
-        <div><b>CN:</b><br><span id="time-cn"></span></div>
+    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; font-size: 12px; text-align: center;">
+        <div><b>VietNam (VN):</b><br><span id="time-vn" style="font-size: 16px; font-weight: bold;"></span></div>
+        <div><b>UTC:</b><br><span id="time-utc" style="font-size: 16px; font-weight: bold;"></span></div>
+        <div><b>HongKong (HK):</b><br><span id="time-hk" style="font-size: 16px; font-weight: bold;"></span></div>
+        <div><b>Taipei (TW):</b><br><span id="time-tp" style="font-size: 16px; font-weight: bold;"></span></div>
+        <div><b>Korean (KR):</b><br><span id="time-kr" style="font-size: 16px; font-weight: bold;"></span></div>
+        <div><b>Thailand (TH):</b><br><span id="time-th" style="font-size: 16px; font-weight: bold;"></span></div>
+        <div><b>Singapore (SG):</b><br><span id="time-sg" style="font-size: 16px; font-weight: bold;"></span></div>
+        <div><b>Malaysia (MY):</b><br><span id="time-my" style="font-size: 16px; font-weight: bold;"></span></div>
     </div>
 </div>
 <script>
     function updateTime() {
         const now = new Date();
-        const opts = {hour: '2-digit', minute: '2-digit', hour12: false};
-        document.getElementById('time-utc').innerText = now.toLocaleTimeString('en-GB', {timeZone: 'UTC', ...opts});
-        document.getElementById('time-vn').innerText = now.toLocaleTimeString('en-GB', {timeZone: 'Asia/Ho_Chi_Minh', ...opts});
-        document.getElementById('time-hk').innerText = now.toLocaleTimeString('en-GB', {timeZone: 'Asia/Hong_Kong', ...opts});
-        document.getElementById('time-tp').innerText = now.toLocaleTimeString('en-GB', {timeZone: 'Asia/Taipei', ...opts});
-        document.getElementById('time-kr').innerText = now.toLocaleTimeString('en-GB', {timeZone: 'Asia/Seoul', ...opts});
-        document.getElementById('time-th').innerText = now.toLocaleTimeString('en-GB', {timeZone: 'Asia/Bangkok', ...opts});
-        document.getElementById('time-sg').innerText = now.toLocaleTimeString('en-GB', {timeZone: 'Asia/Singapore', ...opts});
-        document.getElementById('time-my').innerText = now.toLocaleTimeString('en-GB', {timeZone: 'Asia/Kuala_Lumpur', ...opts});
-        document.getElementById('time-cn').innerText = now.toLocaleTimeString('en-GB', {timeZone: 'Asia/Shanghai', ...opts});
+        const opts = {hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false};
+        const zones = ['Asia/Ho_Chi_Minh', 'UTC', 'Asia/Hong_Kong', 'Asia/Taipei', 'Asia/Seoul', 'Asia/Bangkok', 'Asia/Singapore', 'Asia/Kuala_Lumpur'];
+        const ids = ['vn', 'utc', 'hk', 'tp', 'kr', 'th', 'sg', 'my'];
+        ids.forEach((id, i) => {
+            document.getElementById('time-'+id).innerText = now.toLocaleTimeString('en-GB', {timeZone: zones[i], ...opts});
+        });
     }
     setInterval(updateTime, 1000);
     updateTime();
 </script>
 """
-components.html(header_html, height=80)
+components.html(header_html, height=220)
 
 # ==========================================
-# DANH SÁCH QUỐC GIA MỚI
+# CẤU HÌNH QUỐC GIA & GRID
 # ==========================================
-st.subheader("🌍 Chọn quốc gia đến:")
-
-COUNTRY_CONFIG = {
-    "Việt Nam": "vn", "HongKong": "hk", "Taipei": "tw", 
-    "Korean": "kr", "Thailand": "th", "Singapore": "sg", 
-    "Malaysia": "my", "China": "cn"
+COUNTRY_DATA = {
+    "Việt Nam": "vn", "HongKong": "hk", "Taipei": "tw", "Korean": "kr",
+    "Thailand": "th", "Singapore": "sg", "Malaysia": "my", "China": "cn"
 }
 
 if 'sel' not in st.session_state: st.session_state.sel = "Việt Nam"
 
-# Chia grid 4 cột để hiển thị 8 nước gọn gàng
+st.markdown("### 🌍 Lựa chọn điểm đến:")
+# Tạo lưới 4 cột cho các nút bấm
 cols = st.columns(4)
-keys = list(COUNTRY_CONFIG.keys())
+keys = list(COUNTRY_DATA.keys())
 
 for i, key in enumerate(keys):
     with cols[i % 4]:
-        flag = f"https://flagcdn.com/w40/{COUNTRY_CONFIG[key]}.png"
-        if st.button(f"{key}", key=f"btn_{key}", use_container_width=True):
+        flag_url = f"https://flagcdn.com/w40/{COUNTRY_DATA[key]}.png"
+        # Dùng Markdown để tạo nút có hình ảnh quốc kỳ
+        if st.button(f"![Flag]({flag_url}) {key}", key=f"btn_{key}", use_container_width=True):
             st.session_state.sel = key
             st.rerun()
 
-st.markdown(f"### Đang làm việc với: **{st.session_state.sel}**")
-st.file_uploader(f"Tải lên file GD cho {st.session_state.sel}")
+st.markdown("---")
+st.success(f"Đang cấu hình dữ liệu cho: **{st.session_state.sel}**")
+st.file_uploader(f"Tải lên file GD (.xls, .xlsx) cho chuyến bay đến {st.session_state.sel}")
