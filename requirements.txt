@@ -1,7 +1,5 @@
 streamlit
 pandas
-numpy
-xlsxwriter
 openpyxl
-lxml
-html5lib
+xlrd
+beautifulsoup4
