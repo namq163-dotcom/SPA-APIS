@@ -5,11 +5,68 @@ from datetime import datetime
 from io import BytesIO, StringIO
 from openpyxl import load_workbook
 
-# Cấu hình giao diện
+# ==========================================
+# CẤU HÌNH GIAO DIỆN (SUN PHUQUOC AIRWAYS)
+# ==========================================
 st.set_page_config(page_title="Sun PhuQuoc Airways - APIS", page_icon="☀️", layout="wide")
 
+st.markdown("""
+<style>
+    .stButton > button { 
+        border-radius: 10px; 
+        font-weight: 600; 
+        border: 1px solid #d4af37; 
+        height: 60px; 
+        background-color: white; 
+        transition: all 0.3s ease;
+    }
+    .stButton > button:hover { 
+        background-color: #fffaf0; 
+        border: 2px solid #d4af37; 
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(212,175,55,0.3);
+    }
+</style>
+""", unsafe_allow_html=True)
+
 # ==========================================
-# CÁC HÀM XỬ LÝ DỮ LIỆU
+# HEADER: HIỂN THỊ ĐỒNG HỒ 8 MÚI GIỜ TO RÕ
+# ==========================================
+header_html = """
+<div style="background: linear-gradient(135deg, #1a2a6c, #001f3f); padding: 20px; border-radius: 15px; color: white; font-family: sans-serif; box-shadow: 0 4px 15px rgba(0,0,0,0.3); border-bottom: 4px solid #d4af37;">
+    <div style="text-align: center; margin-bottom: 15px;">
+        <div style="font-size: 24px; font-weight: 900; letter-spacing: 2px; color: #d4af37;">SUN PHUQUOC AIRWAYS</div>
+        <div style="font-size: 14px; letter-spacing: 4px; opacity: 0.8;">APIS OPERATIONS CENTER</div>
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; font-size: 13px; text-align: center;">
+        <div style="background: rgba(255,255,255,0.08); padding: 8px; border-radius: 8px;"><b>🇻🇳 VietNam (VN):</b><br><span id="time-vn" style="font-size: 16px; font-weight: bold; color: #d4af37;"></span></div>
+        <div style="background: rgba(255,255,255,0.08); padding: 8px; border-radius: 8px;"><b>🌐 UTC:</b><br><span id="time-utc" style="font-size: 16px; font-weight: bold; color: #d4af37;"></span></div>
+        <div style="background: rgba(255,255,255,0.08); padding: 8px; border-radius: 8px;"><b>🇭🇰 HongKong (HK):</b><br><span id="time-hk" style="font-size: 16px; font-weight: bold; color: #d4af37;"></span></div>
+        <div style="background: rgba(255,255,255,0.08); padding: 8px; border-radius: 8px;"><b>🇹🇼 Taipei (TW):</b><br><span id="time-tp" style="font-size: 16px; font-weight: bold; color: #d4af37;"></span></div>
+        <div style="background: rgba(255,255,255,0.08); padding: 8px; border-radius: 8px;"><b>🇰🇷 Korean (KR):</b><br><span id="time-kr" style="font-size: 16px; font-weight: bold; color: #d4af37;"></span></div>
+        <div style="background: rgba(255,255,255,0.08); padding: 8px; border-radius: 8px;"><b>🇹🇭 Thailand (TH):</b><br><span id="time-th" style="font-size: 16px; font-weight: bold; color: #d4af37;"></span></div>
+        <div style="background: rgba(255,255,255,0.08); padding: 8px; border-radius: 8px;"><b>🇸🇬 Singapore (SG):</b><br><span id="time-sg" style="font-size: 16px; font-weight: bold; color: #d4af37;"></span></div>
+        <div style="background: rgba(255,255,255,0.08); padding: 8px; border-radius: 8px;"><b>🇲🇾 Malaysia (MY):</b><br><span id="time-my" style="font-size: 16px; font-weight: bold; color: #d4af37;"></span></div>
+    </div>
+</div>
+<script>
+    function updateTime() {
+        const now = new Date();
+        const opts = {hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false};
+        const zones = ['Asia/Ho_Chi_Minh', 'UTC', 'Asia/Hong_Kong', 'Asia/Taipei', 'Asia/Seoul', 'Asia/Bangkok', 'Asia/Singapore', 'Asia/Kuala_Lumpur'];
+        const ids = ['vn', 'utc', 'hk', 'tp', 'kr', 'th', 'sg', 'my'];
+        ids.forEach((id, i) => {
+            document.getElementById('time-'+id).innerText = now.toLocaleTimeString('en-GB', {timeZone: zones[i], ...opts});
+        });
+    }
+    setInterval(updateTime, 1000);
+    updateTime();
+</script>
+"""
+components.html(header_html, height=240)
+
+# ==========================================
+# CÁC HÀM XỬ LÝ DỮ LIỆU THÔNG MINH (ĐA ĐỊNH DẠNG)
 # ==========================================
 def parse_date(date_str):
     if pd.isna(date_str) or not str(date_str).strip() or str(date_str).strip().lower() == 'nan': return ""
@@ -24,28 +81,42 @@ def process_roster_data_vn(gd_file, template_file_path):
     content = gd_file.getvalue()
     df_gd = None
     
-    # Thử các engine đọc file
-    for engine in ['openpyxl', 'xlrd']:
-        try: 
-            df_gd = pd.read_excel(BytesIO(content), engine=engine)
-            if df_gd is not None and len(df_gd) > 0: break
-        except: continue
+    # 1. Thử đọc dạng Excel chuẩn (.xlsx)
+    try: 
+        df_gd = pd.read_excel(BytesIO(content), engine='openpyxl')
+    except: 
+        pass
 
+    # 2. Thử đọc dạng Excel cũ (.xls)
     if df_gd is None or len(df_gd) == 0:
-        raise ValueError("Không thể đọc được dữ liệu. Định dạng file không hỗ trợ.")
+        try: 
+            df_gd = pd.read_excel(BytesIO(content), engine='xlrd')
+        except: 
+            pass
 
-    # 1. TỰ ĐỘNG TÌM NƠI ĐI / NƠI ĐẾN
-    dep_place, arr_place = "N/A", "N/A"
-    # Quét 15 dòng đầu để tìm thông tin hành trình
-    search_area = df_gd.iloc[:15].fillna("").astype(str).values
-    for row in search_area:
-        row_str = " ".join(row).lower()
-        if "from" in row_str:
-            dep_place = row_str.split("from")[-1].split("-")[0].strip().upper()
-        if "to" in row_str:
-            arr_place = row_str.split("to")[-1].split("-")[0].strip().upper()
+    # 3. Thử đọc dạng HTML (nhiều hệ thống xuất file .xls thực chất là mã HTML)
+    if df_gd is None or len(df_gd) == 0:
+        for enc in ['utf-8', 'latin1', 'cp1258', 'utf-16']:
+            try:
+                dfs = pd.read_html(StringIO(content.decode(enc, errors='ignore')))
+                if len(dfs) > 0: 
+                    df_gd = dfs[0]
+                    break
+            except: 
+                continue
 
-    # 2. TÌM HEADER BẢNG TỔ BAY
+    # 4. Thử đọc dạng CSV / Text phân cách
+    if df_gd is None or len(df_gd) == 0:
+        for sep in [',', '\t', ';', '|']:
+            for enc in ['utf-8', 'latin1', 'cp1258']:
+                try:
+                    df_gd = pd.read_csv(BytesIO(content), sep=sep, encoding=enc, header=None)
+                    if len(df_gd) > 0: break
+                except: continue
+
+    if df_gd is None or len(df_gd) == 0: 
+        raise ValueError("Không thể đọc được dữ liệu trong file GD. Định dạng file không được hỗ trợ.")
+
     header_idx = None
     for idx, row in df_gd.iterrows():
         row_str = row.fillna("").astype(str).str.lower()
@@ -53,7 +124,8 @@ def process_roster_data_vn(gd_file, template_file_path):
             header_idx = idx
             break
             
-    if header_idx is None: raise ValueError("Không tìm thấy bảng danh sách tổ bay.")
+    if header_idx is None: 
+        raise ValueError("Không tìm thấy bảng danh sách tổ bay (thiếu cột 'passport' hoặc 'name') trong file GD.")
         
     header_row = df_gd.iloc[header_idx].fillna("").astype(str).str.lower()
     col_name = next((i for i, v in enumerate(header_row) if 'name' in v), None)
@@ -68,50 +140,128 @@ def process_roster_data_vn(gd_file, template_file_path):
     
     for idx in range(header_idx + 1, len(df_gd)):
         row = df_gd.iloc[idx]
-        if str(row.iloc[0]).lower() == 'nan': break
+        row_text = row.fillna("").astype(str).str.cat(sep=" ").lower()
+        if 'declaration of health' in row_text or 'total' in row_text: 
+            break
+            
+        name_val = str(row.iloc[col_name]).strip() if col_name is not None and pd.notna(row.iloc[col_name]) else 'nan'
+        passport_val = str(row.iloc[col_passport]).strip() if col_passport is not None and pd.notna(row.iloc[col_passport]) else 'nan'
         
-        passport_val = str(row.iloc[col_passport]).strip() if col_passport is not None else ""
-        if passport_val in seen_passports or passport_val == 'nan': continue
-        seen_passports.add(passport_val)
-        
-        name_val = str(row.iloc[col_name]).strip()
-        name_parts = name_val.split()
-        family_name = name_parts[0] if name_parts else ""
-        given_name = " ".join(name_parts[1:]) if len(name_parts) > 1 else ""
-        
-        crew_data.append([
-            family_name, None, given_name, str(row.iloc[col_gender]), str(row.iloc[col_nat]), 
-            parse_date(row.iloc[col_dob]), 'P', passport_val, str(row.iloc[col_nat]), 
-            parse_date(row.iloc[col_expiry])
-        ])
+        if name_val.lower() != 'nan' and passport_val.lower() != 'nan' and name_val != '':
+            if passport_val in seen_passports: 
+                continue
+            seen_passports.add(passport_val)
+            
+            name_parts = name_val.split()
+            if len(name_parts) > 1 and len(name_parts[-1]) <= 3 and name_parts[-1].isupper(): 
+                name_parts = name_parts[:-1]
+                
+            family_name = name_parts[0] if name_parts else ""
+            given_name = " ".join(name_parts[1:]) if len(name_parts) > 1 else ""
+            nat = str(row.iloc[col_nat]).strip() if col_nat is not None and pd.notna(row.iloc[col_nat]) else ""
+            if nat.upper() == 'VNM': 
+                nat = 'VN'
+            gender = str(row.iloc[col_gender]).strip() if col_gender is not None and pd.notna(row.iloc[col_gender]) else ""
+            
+            crew_data.append([
+                family_name, None, given_name, gender, nat, 
+                parse_date(row.iloc[col_dob]) if col_dob is not None else "", 
+                'P', passport_val, nat, 
+                parse_date(row.iloc[col_expiry]) if col_expiry is not None else ""
+            ])
 
-    # 3. GHI VÀO TEMPLATE
+    if len(crew_data) == 0:
+        raise ValueError("Đọc được file nhưng không tìm thấy dữ liệu tổ bay hợp lệ bên trong.")
+
     output = BytesIO()
     book = load_workbook(template_file_path)
     sheet = book.active
     
-    # Ghi thông tin hành trình (Thay đổi tọa độ C5, C6 nếu cần)
-    sheet['C5'] = dep_place
-    sheet['C6'] = arr_place
-    
-    # Ghi danh sách
+    for row in sheet.iter_rows(min_row=14, max_row=sheet.max_row, min_col=1, max_col=10):
+        for cell in row: cell.value = None
+
     for r_idx, row_data in enumerate(crew_data, 14):
         for c_idx, value in enumerate(row_data, 1):
             sheet.cell(row=r_idx, column=c_idx, value=value)
             
     book.save(output)
-    return output.getvalue(), pd.DataFrame(crew_data)
+    df_preview = pd.DataFrame(crew_data, columns=['Họ', 'Tên đệm', 'Tên', 'Giới tính', 'Quốc tịch', 'Ngày sinh', 'Loại giấy tờ', 'Số giấy tờ', 'Nơi cấp', 'Ngày hết hạn'])
+    return output.getvalue(), df_preview
 
 # ==========================================
-# GIAO DIỆN CHÍNH
+# GIAO DIỆN CHỌN QUỐC GIA (4 NƯỚC MỖI HÀNG + CỜ)
 # ==========================================
-st.markdown("### ☀️ Sun PhuQuoc Airways - APIS Tool")
-uploaded_gd = st.file_uploader("Tải lên file GD", type=["xlsx", "xls"])
+COUNTRY_CONFIG = {
+    "Việt Nam": {"code": "vn", "ready": True, "template": "Template_VNAPIS.xlsx"},
+    "HongKong": {"code": "hk", "ready": False, "template": ""},
+    "Taipei": {"code": "tw", "ready": False, "template": ""},
+    "Korean": {"code": "kr", "ready": False, "template": ""},
+    "Thailand": {"code": "th", "ready": False, "template": ""},
+    "Singapore": {"code": "sg", "ready": False, "template": ""},
+    "Malaysia": {"code": "my", "ready": False, "template": ""},
+    "China": {"code": "cn", "ready": False, "template": ""}
+}
 
-if uploaded_gd:
-    try:
-        excel_data, preview = process_roster_data_vn(uploaded_gd, "Template_VNAPIS.xlsx")
-        st.success("Đã xử lý xong!")
-        st.download_button("Tải file APIS", excel_data, "APIS_Export.xlsx")
-    except Exception as e:
-        st.error(f"Lỗi: {e}")
+if 'sel' not in st.session_state: 
+    st.session_state.sel = "Việt Nam"
+
+st.markdown("<p style='font-size: 16px; font-weight: bold; color: #1a2a6c; margin-top: 20px;'>🌍 Vui lòng chọn Quốc gia đến:</p>", unsafe_allow_html=True)
+
+keys = list(COUNTRY_CONFIG.keys())
+
+def render_country_grid(start_idx, end_idx):
+    cols = st.columns(4)
+    for i, idx in enumerate(range(start_idx, end_idx)):
+        c_name = keys[idx]
+        cfg = COUNTRY_CONFIG[c_name]
+        is_selected = (st.session_state.sel == c_name)
+        
+        with cols[i]:
+            flag_url = f"https://flagcdn.com/w40/{cfg['code']}.png"
+            border_color = "#d4af37" if is_selected else "#d1d5db"
+            bg_color = "#fffaf0" if is_selected else "#ffffff"
+            shadow = "0 4px 10px rgba(212,175,55,0.3)" if is_selected else "0 2px 4px rgba(0,0,0,0.05)"
+            
+            st.markdown(f"""
+            <div style="display: flex; align-items: center; padding: 8px 12px; background-color: {bg_color}; border: 2px solid {border_color}; border-radius: 8px; box-shadow: {shadow}; margin-bottom: 6px;">
+                <img src="{flag_url}" width="32" style="border-radius: 3px; margin-right: 10px; object-fit: cover;">
+                <div style="font-weight: 700; color: #1a2a6c; font-size: 13px;">{c_name}</div>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            btn_text = f"Chọn {c_name}" if not is_selected else "Đang chọn ✓"
+            if st.button(btn_text, key=f"btn_{c_name}", use_container_width=True):
+                st.session_state.sel = c_name
+                st.rerun()
+
+render_country_grid(0, 4)
+render_country_grid(4, 8)
+
+st.markdown("---")
+
+# ==========================================
+# XỬ LÝ UPLOAD VÀ XUẤT FILE APIS
+# ==========================================
+selected_cfg = COUNTRY_CONFIG[st.session_state.sel]
+
+if selected_cfg["ready"]:
+    uploaded_gd = st.file_uploader(f"Tải lên file GD (.xls, .xlsx) cho chuyến bay đến {st.session_state.sel}", type=["xls", "xlsx", "txt", "csv"])
+    if uploaded_gd is not None:
+        st.info(f"Đang xử lý dữ liệu APIS cho {st.session_state.sel}...")
+        try:
+            if st.session_state.sel == "Việt Nam":
+                excel_data, preview_data = process_roster_data_vn(uploaded_gd, selected_cfg["template"])
+                
+            st.success(f"✅ Đã xử lý thành công form APIS cho {st.session_state.sel}!")
+            st.dataframe(preview_data, use_container_width=True) 
+            st.download_button(
+                label=f"⬇️ Tải file Excel APIS chuẩn ({st.session_state.sel})",
+                data=excel_data,
+                file_name=f"APIS_Crew_{selected_cfg['code'].upper()}.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
+        except Exception as e:
+            st.error(f"❌ Có lỗi xảy ra trong quá trình xử lý: {e}")
+else:
+    st.warning(f"🚧 Chức năng xuất APIS cho **{st.session_state.sel}** đang được xây dựng (chờ template chuẩn).")
+    st.info("💡 Khi bạn có file template mẫu của quốc gia này, hãy gửi cho tôi để cập nhật logic xử lý tự động nhé!")
