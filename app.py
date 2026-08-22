@@ -35,8 +35,8 @@ st.markdown("""
 header_html = """
 <div style="background: linear-gradient(135deg, #1a2a6c, #001f3f); padding: 20px; border-radius: 15px; color: white; font-family: sans-serif; box-shadow: 0 4px 15px rgba(0,0,0,0.3); border-bottom: 4px solid #d4af37;">
     <div style="text-align: center; margin-bottom: 15px;">
-        <div style="font-size: 24px; font-weight: 900; letter-spacing: 2px; color: #d4af37;">SUN PHUQUOC AIRWAYS</div>
-        <div style="font-size: 14px; letter-spacing: 4px; opacity: 0.8;">APIS OPERATIONS CENTER</div>
+        <div style="font-size: 24px; font-weight: 900; letter-spacing: 2px; color: #d4af37;">☀️SUN PHUQUOC AIRWAYS</div>
+        <div style="font-size: 14px; letter-spacing: 4px; opacity: 0.8;">APIS CENTER</div>
     </div>
     <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; font-size: 13px; text-align: center;">
         <div style="background: rgba(255,255,255,0.08); padding: 8px; border-radius: 8px;"><b>🇻🇳 VietNam (VN):</b><br><span id="time-vn" style="font-size: 16px; font-weight: bold; color: #d4af37;"></span></div>
@@ -66,7 +66,7 @@ header_html = """
 components.html(header_html, height=240)
 
 # ==========================================
-# CÁC HÀM XỬ LÝ DỮ LIỆU THÔNG MINH (ĐA ĐỊNH DẠNG)
+# CÁC HÀM XỬ LÝ DỮ LIỆU THÔNG MINH
 # ==========================================
 def parse_date(date_str):
     if pd.isna(date_str) or not str(date_str).strip() or str(date_str).strip().lower() == 'nan': return ""
@@ -81,42 +81,41 @@ def process_roster_data_vn(gd_file, template_file_path):
     content = gd_file.getvalue()
     df_gd = None
     
-    # 1. Thử đọc dạng Excel chuẩn (.xlsx)
-    try: 
-        df_gd = pd.read_excel(BytesIO(content), engine='openpyxl')
-    except: 
-        pass
-
-    # 2. Thử đọc dạng Excel cũ (.xls)
-    if df_gd is None or len(df_gd) == 0:
+    # Đọc file đa định dạng
+    for engine in ['openpyxl', 'xlrd']:
         try: 
-            df_gd = pd.read_excel(BytesIO(content), engine='xlrd')
-        except: 
-            pass
+            df_gd = pd.read_excel(BytesIO(content), engine=engine)
+            if df_gd is not None and len(df_gd) > 0: break
+        except: continue
 
-    # 3. Thử đọc dạng HTML (nhiều hệ thống xuất file .xls thực chất là mã HTML)
     if df_gd is None or len(df_gd) == 0:
-        for enc in ['utf-8', 'latin1', 'cp1258', 'utf-16']:
+        for enc in ['utf-8', 'latin1', 'cp1258']:
             try:
                 dfs = pd.read_html(StringIO(content.decode(enc, errors='ignore')))
                 if len(dfs) > 0: 
                     df_gd = dfs[0]
                     break
-            except: 
-                continue
-
-    # 4. Thử đọc dạng CSV / Text phân cách
-    if df_gd is None or len(df_gd) == 0:
-        for sep in [',', '\t', ';', '|']:
-            for enc in ['utf-8', 'latin1', 'cp1258']:
-                try:
-                    df_gd = pd.read_csv(BytesIO(content), sep=sep, encoding=enc, header=None)
-                    if len(df_gd) > 0: break
-                except: continue
+            except: continue
 
     if df_gd is None or len(df_gd) == 0: 
         raise ValueError("Không thể đọc được dữ liệu trong file GD. Định dạng file không được hỗ trợ.")
 
+    # 1. TỰ ĐỘNG DÒ TÌM NƠI KHỞI HÀNH & NƠI ĐẾN TỪ FILE GD
+    dep_place, arr_place = "", ""
+    for idx in range(min(15, len(df_gd))):
+        row_text = df_gd.iloc[idx].fillna("").astype(str).str.cat(sep=" ").lower()
+        if "from" in row_text or "departure" in row_text or "khởi hành" in row_text:
+            parts = row_text.split()
+            for i, p in enumerate(parts):
+                if p in ["from", "departure"] and i + 1 < len(parts):
+                    dep_place = parts[i+1].upper()
+        if "to" in row_text or "arrival" in row_text or "đến" in row_text:
+            parts = row_text.split()
+            for i, p in enumerate(parts):
+                if p in ["to", "arrival"] and i + 1 < len(parts):
+                    arr_place = parts[i+1].upper()
+
+    # 2. TÌM HEADER BẢNG TỔ BAY
     header_idx = None
     for idx, row in df_gd.iterrows():
         row_str = row.fillna("").astype(str).str.lower()
@@ -173,13 +172,20 @@ def process_roster_data_vn(gd_file, template_file_path):
     if len(crew_data) == 0:
         raise ValueError("Đọc được file nhưng không tìm thấy dữ liệu tổ bay hợp lệ bên trong.")
 
+    # 3. GHI DỮ LIỆU VÀO TEMPLATE (ĐIỀN VÀO Ô B3 & B6 TƯƠNG ƯNG VỚI ẢNH MẪU)
     output = BytesIO()
     book = load_workbook(template_file_path)
     sheet = book.active
     
+    # Ghi Nơi khởi hành và Nơi đến vào template chuẩn
+    if dep_place: sheet['B3'] = dep_place
+    if arr_place: sheet['B6'] = arr_place
+    
+    # Xóa dữ liệu cũ của danh sách tổ bay từ dòng 14 trở xuống
     for row in sheet.iter_rows(min_row=14, max_row=sheet.max_row, min_col=1, max_col=10):
         for cell in row: cell.value = None
 
+    # Điền danh sách tổ bay mới
     for r_idx, row_data in enumerate(crew_data, 14):
         for c_idx, value in enumerate(row_data, 1):
             sheet.cell(row=r_idx, column=c_idx, value=value)
@@ -189,7 +195,7 @@ def process_roster_data_vn(gd_file, template_file_path):
     return output.getvalue(), df_preview
 
 # ==========================================
-# GIAO DIỆN CHỌN QUỐC GIA (4 NƯỚC MỖI HÀNG + CỜ)
+# GIAO DIỆN CHỌN QUỐC GIA
 # ==========================================
 COUNTRY_CONFIG = {
     "Việt Nam": {"code": "vn", "ready": True, "template": "Template_VNAPIS.xlsx"},
@@ -264,4 +270,3 @@ if selected_cfg["ready"]:
             st.error(f"❌ Có lỗi xảy ra trong quá trình xử lý: {e}")
 else:
     st.warning(f"🚧 Chức năng xuất APIS cho **{st.session_state.sel}** đang được xây dựng (chờ template chuẩn).")
-    st.info("💡 Khi bạn có file template mẫu của quốc gia này, hãy gửi cho tôi để cập nhật logic xử lý tự động nhé!")
