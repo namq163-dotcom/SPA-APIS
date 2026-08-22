@@ -46,7 +46,7 @@ header_html = """
         <div style="background: rgba(255,255,255,0.08); padding: 8px; border-radius: 8px;"><b>🇰🇷 Korean (KR):</b><br><span id="time-kr" style="font-size: 16px; font-weight: bold; color: #d4af37;"></span></div>
         <div style="background: rgba(255,255,255,0.08); padding: 8px; border-radius: 8px;"><b>🇹🇭 Thailand (TH):</b><br><span id="time-th" style="font-size: 16px; font-weight: bold; color: #d4af37;"></span></div>
         <div style="background: rgba(255,255,255,0.08); padding: 8px; border-radius: 8px;"><b>🇸🇬 Singapore (SG):</b><br><span id="time-sg" style="font-size: 16px; font-weight: bold; color: #d4af37;"></span></div>
-        <div style="background: rgba(255,255,255,0.08); padding: 8px; border-radius: 8px;"><b>🇲🇾 Malaysia (MY):</b><br><span id="time-sg" style="font-size: 16px; font-weight: bold; color: #d4af37;"></span></div>
+        <div style="background: rgba(255,255,255,0.08); padding: 8px; border-radius: 8px;"><b>🇲🇾 Malaysia (MY):</b><br><span id="time-my" style="font-size: 16px; font-weight: bold; color: #d4af37;"></span></div>
     </div>
 </div>
 <script>
@@ -66,7 +66,7 @@ header_html = """
 components.html(header_html, height=240)
 
 # ==========================================
-# CÁC HÀM XỬ LÝ DỮ LIỆU
+# CÁC HÀM XỬ LÝ DỮ LIỆU ĐÃ NÂNG CẤP ĐỌC ĐA ĐỊNH DẠNG
 # ==========================================
 def parse_date(date_str):
     if pd.isna(date_str) or not str(date_str).strip() or str(date_str).strip().lower() == 'nan': return ""
@@ -80,9 +80,12 @@ def parse_date(date_str):
 def process_roster_data_vn(gd_file, template_file_path):
     content = gd_file.getvalue()
     df_gd = None
+    
+    # 1. Thử đọc dạng Excel chuẩn
     try: df_gd = pd.read_excel(BytesIO(content))
     except: pass
 
+    # 2. Thử đọc dạng HTML (nếu file .xls bản chất là HTML)
     if df_gd is None or len(df_gd) == 0:
         for enc in ['utf-8', 'latin1', 'cp1258', 'utf-16']:
             try:
@@ -90,7 +93,17 @@ def process_roster_data_vn(gd_file, template_file_path):
                 if len(dfs) > 0: df_gd = dfs[0]; break
             except: continue
 
-    if df_gd is None or len(df_gd) == 0: raise ValueError("Không thể đọc được dữ liệu trong file GD.")
+    # 3. Thử đọc dạng CSV / Text
+    if df_gd is None or len(df_gd) == 0:
+        for sep in [',', '\t', ';', '|']:
+            for enc in ['utf-8', 'latin1', 'cp1258']:
+                try:
+                    df_gd = pd.read_csv(BytesIO(content), sep=sep, encoding=enc, header=None)
+                    if len(df_gd) > 0: break
+                except: continue
+
+    if df_gd is None or len(df_gd) == 0: 
+        raise ValueError("Không thể đọc được dữ liệu trong file GD. Định dạng file không được hỗ trợ.")
 
     header_idx = None
     for idx, row in df_gd.iterrows():
@@ -98,7 +111,7 @@ def process_roster_data_vn(gd_file, template_file_path):
         if any('passport' in s for s in row_str) and any('name' in s for s in row_str):
             header_idx = idx; break
             
-    if header_idx is None: raise ValueError("Không tìm thấy bảng danh sách tổ bay trong file GD.")
+    if header_idx is None: raise ValueError("Không tìm thấy bảng danh sách tổ bay (thiếu cột 'passport' hoặc 'name') trong file GD.")
         
     header_row = df_gd.iloc[header_idx].fillna("").astype(str).str.lower()
     col_name = next((i for i, v in enumerate(header_row) if 'name' in v), None)
@@ -113,7 +126,8 @@ def process_roster_data_vn(gd_file, template_file_path):
     
     for idx in range(header_idx + 1, len(df_gd)):
         row = df_gd.iloc[idx]
-        if 'declaration of health' in row.fillna("").astype(str).str.cat(sep=" ").lower(): break
+        row_text = row.fillna("").astype(str).str.cat(sep=" ").lower()
+        if 'declaration of health' in row_text or 'total' in row_text: break
             
         name_val = str(row.iloc[col_name]).strip() if col_name is not None and pd.notna(row.iloc[col_name]) else 'nan'
         passport_val = str(row.iloc[col_passport]).strip() if col_passport is not None and pd.notna(row.iloc[col_passport]) else 'nan'
@@ -136,6 +150,9 @@ def process_roster_data_vn(gd_file, template_file_path):
                 'P', passport_val, nat, 
                 parse_date(row.iloc[col_expiry]) if col_expiry is not None else ""
             ])
+
+    if len(crew_data) == 0:
+        raise ValueError("Đọc được file nhưng không tìm thấy dữ liệu tổ bay hợp lệ bên trong.")
 
     output = BytesIO()
     book = load_workbook(template_file_path)
@@ -198,7 +215,6 @@ def render_country_grid(start_idx, end_idx):
                 st.session_state.sel = c_name
                 st.rerun()
 
-# Hiển thị 2 hàng (mỗi hàng 4 nước)
 render_country_grid(0, 4)
 render_country_grid(4, 8)
 
