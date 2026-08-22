@@ -100,20 +100,27 @@ def process_roster_data_vn(gd_file, template_file_path):
     if df_gd is None or len(df_gd) == 0: 
         raise ValueError("Không thể đọc được dữ liệu trong file GD. Định dạng file không được hỗ trợ.")
 
-    # 1. TỰ ĐỘNG DÒ TÌM NƠI KHỞI HÀNH & NƠI ĐẾN TỪ FILE GD
+    # 1. TỰ ĐỘNG DÒ TÌM NƠI KHỞI HÀNH & NƠI ĐẾN CHÍNH XÁC TỪ FILE GD
     dep_place, arr_place = "", ""
     for idx in range(min(15, len(df_gd))):
-        row_text = df_gd.iloc[idx].fillna("").astype(str).str.cat(sep=" ").lower()
-        if "from" in row_text or "departure" in row_text or "khởi hành" in row_text:
-            parts = row_text.split()
-            for i, p in enumerate(parts):
-                if p in ["from", "departure"] and i + 1 < len(parts):
-                    dep_place = parts[i+1].upper()
-        if "to" in row_text or "arrival" in row_text or "đến" in row_text:
-            parts = row_text.split()
-            for i, p in enumerate(parts):
-                if p in ["to", "arrival"] and i + 1 < len(parts):
-                    arr_place = parts[i+1].upper()
+        row_full_text = " ".join(df_gd.iloc[idx].fillna("").astype(str))
+        row_lower = row_full_text.lower()
+        
+        # Tìm Departure
+        if "departure from" in row_lower:
+            try:
+                part = row_full_text.split("Departure from")[1].strip()
+                dep_place = part.split()[0].upper() # Lấy chữ đầu tiên sau 'Departure from' (ví dụ PQC)
+            except:
+                pass
+                
+        # Tìm Arrival
+        if "arrival at" in row_lower:
+            try:
+                part = row_full_text.split("Arrival at")[1].strip()
+                arr_place = part.split()[0].upper() # Lấy chữ đầu tiên sau 'Arrival at' (ví dụ HKG)
+            except:
+                pass
 
     # 2. TÌM HEADER BẢNG TỔ BAY
     header_idx = None
@@ -172,12 +179,11 @@ def process_roster_data_vn(gd_file, template_file_path):
     if len(crew_data) == 0:
         raise ValueError("Đọc được file nhưng không tìm thấy dữ liệu tổ bay hợp lệ bên trong.")
 
-    # 3. GHI DỮ LIỆU VÀO TEMPLATE (ĐIỀN VÀO Ô B3 & B6 TƯƠNG ƯNG VỚI ẢNH MẪU)
+    # 3. GHI DỮ LIỆU VÀO TEMPLATE (B3: Departure, B6: Arrival)
     output = BytesIO()
     book = load_workbook(template_file_path)
     sheet = book.active
     
-    # Ghi Nơi khởi hành và Nơi đến vào template chuẩn
     if dep_place: sheet['B3'] = dep_place
     if arr_place: sheet['B6'] = arr_place
     
